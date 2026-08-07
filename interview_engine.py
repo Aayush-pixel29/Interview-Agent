@@ -1,6 +1,7 @@
 import os
 import json
 import httpx
+import asyncio
 import logging
 from typing import Dict, Any, Tuple, List, Optional
 from dotenv import load_dotenv
@@ -35,7 +36,10 @@ def get_day_info(day_num: int) -> Tuple[str, str]:
     return f"Day {day_num} Concepts", "Core AI engineering fundamentals"
 
 async def call_gemini(system_prompt: str, user_prompt: str, response_json: bool = False) -> str:
-    """Helper to query Gemini REST API safely using header authentication and system_instruction."""
+    """
+    Helper to query Gemini REST API safely using header authentication and system_instruction.
+    Includes exponential backoff retry logic for 429 Rate Limit and 5xx transient server errors.
+    """
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("GEMINI_API_KEY is not set in environment variables.")
@@ -62,11 +66,32 @@ async def call_gemini(system_prompt: str, user_prompt: str, response_json: bool 
     if response_json:
         payload["generationConfig"]["responseMimeType"] = "application/json"
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        res = await client.post(url, json=payload, headers=headers)
-        res.raise_for_status()
-        data = res.json()
-        return data["candidates"][0]["content"]["parts"][0]["text"]
+    max_retries = 4
+    delay = 2.0
+    
+    async with httpx.AsyncClient(timeout=35.0) as client:
+        for attempt in range(max_retries):
+            try:
+                res = await client.post(url, json=payload, headers=headers)
+                res.raise_for_status()
+                data = res.json()
+                return data["candidates"][0]["content"]["parts"][0]["text"]
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code in [429, 500, 502, 503, 504] and attempt < max_retries - 1:
+                    logger.warning(f"Gemini API status {e.response.status_code}. Retrying in {delay}s... (Attempt {attempt+1}/{max_retries})")
+                    await asyncio.sleep(delay)
+                    delay *= 2.0
+                else:
+                    raise e
+            except (httpx.RequestError, asyncio.TimeoutError) as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"Gemini API request error: {e}. Retrying in {delay}s... (Attempt {attempt+1}/{max_retries})")
+                    await asyncio.sleep(delay)
+                    delay *= 2.0
+                else:
+                    raise e
+                    
+    raise RuntimeError("Failed to obtain response from Gemini API after retries.")
 
 def get_candidate_target_days(candidate: Dict[str, Any]) -> List[int]:
     """Selects 4+ curriculum days based on candidate's completed/skipped missions."""
