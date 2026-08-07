@@ -1,0 +1,17 @@
+[
+  {
+    "id": "cand_001",
+    "member": {
+      "name": "Alex Chen",
+      "jobRole": "Senior AI Engineer"
+    },
+    "missions": [
+      { "day": 7, "passed": true, "attempts": 1, "skipped": false },
+      { "day": 10, "passed": false, "attempts": 3, "skipped": false },
+      { "day": 12, "passed": false, "attempts": 1, "skipped": true },
+      { "day": 16, "passed": true, "attempts": 2, "skipped": false },
+      { "day": 22, "passed": false, "attempts": 4, "skipped": false },
+      { "day": 28, "passed": true, "attempts": 1, "skipped": false }
+    ]
+  }
+]

@@ -1,0 +1,67 @@
+{
+  "days": [
+    {
+      "day": 7,
+      "topic": "Prompt Engineering & In-Context Learning",
+      "objectives": [
+        "Chain-of-thought prompting",
+        "Few-shot examples",
+        "System message design and prompt injection defense"
+      ]
+    },
+    {
+      "day": 10,
+      "topic": "Retrieval-Augmented Generation (RAG) & Vector Search",
+      "objectives": [
+        "Embedding models and chunking strategies",
+        "Vector databases (Milvus, Pinecone, Qdrant)",
+        "Hybrid search and re-ranking techniques"
+      ]
+    },
+    {
+      "day": 12,
+      "topic": "LLM Evaluation Metrics & Alignment",
+      "objectives": [
+        "Automated benchmarks and LLM-as-a-judge",
+        "RLHF and DPO alignment strategies",
+        "Hallucination detection and mitigation"
+      ]
+    },
+    {
+      "day": 16,
+      "topic": "Agentic Workflows & Function Calling",
+      "objectives": [
+        "ReAct and plan-and-execute architectures",
+        "Structured output generation via OpenAPI schemas",
+        "Multi-agent coordination and state management"
+      ]
+    },
+    {
+      "day": 22,
+      "topic": "Model Fine-Tuning & Quantization",
+      "objectives": [
+        "Parameter-Efficient Fine-Tuning (LoRA, QLoRA)",
+        "Model quantization (GGUF, AWQ, GPTQ)",
+        "Dataset curation and instruction tuning"
+      ]
+    },
+    {
+      "day": 23,
+      "topic": "Multimodal AI Models",
+      "objectives": [
+        "Vision-language models and cross-attention",
+        "Audio processing and real-time speech APIs",
+        "Multimodal embedding spaces"
+      ]
+    },
+    {
+      "day": 28,
+      "topic": "Production AI Deployment & Optimizations",
+      "objectives": [
+        "vLLM, TGI, and speculative decoding",
+        "Streaming response latency optimization",
+        "Observability, tracing, and token cost tracking"
+      ]
+    }
+  ]
+}
