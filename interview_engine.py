@@ -25,11 +25,11 @@ except Exception as err:
     CURRICULUM_DATA = {"days": []}
 
 def get_day_info(day_num: int) -> Tuple[str, str]:
-    """Retrieve topic name and objectives string for a given curriculum day."""
+    """Retrieve topic title and objectives string for a given curriculum day."""
     days_list = CURRICULUM_DATA.get("days", [])
     for d in days_list:
         if d.get("day") == day_num:
-            topic = d.get("topic", f"Day {day_num} Topics")
+            topic = d.get("title", f"Day {day_num} Topics")
             objs = ", ".join(d.get("objectives", []))
             return topic, objs
     return f"Day {day_num} Concepts", "Core AI engineering fundamentals"
@@ -73,7 +73,7 @@ def get_candidate_target_days(candidate: Dict[str, Any]) -> List[int]:
     missions = candidate.get("missions", [])
     
     skipped_days = [m["day"] for m in missions if m.get("skipped")]
-    struggled_days = [m["day"] for m in missions if m.get("attempts", 0) >= 3]
+    struggled_days = [m["day"] for m in missions if m.get("attempts", 0) >= 3 or not m.get("passed", True)]
     passed_days = [m["day"] for m in missions if m.get("passed")]
     
     target_days: List[int] = []
@@ -82,7 +82,7 @@ def get_candidate_target_days(candidate: Dict[str, Any]) -> List[int]:
             target_days.append(day)
             
     # Fallback default days if candidate mission list is short
-    for fallback in [7, 10, 12, 16, 22, 23, 28]:
+    for fallback in [7, 8, 10, 12, 16, 22, 23, 28]:
         if len(target_days) < 6 and fallback not in target_days:
             target_days.append(fallback)
             
@@ -103,13 +103,25 @@ async def handle_interview_turn(session_id: str, candidate_data: Optional[Dict[s
             "current_day": start_day
         }
         
-        c_name = candidate_data.get("member", {}).get("name", "Candidate")
-        c_role = candidate_data.get("member", {}).get("jobRole", "AI Engineer")
+        member = candidate_data.get("member", {})
+        c_name = member.get("name", "Candidate")
+        c_role = member.get("jobRole", "AI Engineer")
+        c_exp = member.get("yearsExperience", 0)
+        c_edu = member.get("education", "Computer Science")
+        
+        missions = candidate_data.get("missions", [])
+        skipped_titles = [m.get("title", f"Day {m['day']}") for m in missions if m.get("skipped")]
+        struggled_titles = [m.get("title", f"Day {m['day']}") for m in missions if m.get("attempts", 0) >= 3 or not m.get("passed", True)]
+        
         day_topic, day_objs = get_day_info(start_day)
         
         initial_prompt = prompts.INITIAL_TURN_TEMPLATE.format(
             candidate_name=c_name,
             candidate_role=c_role,
+            years_experience=c_exp,
+            education=c_edu,
+            skipped_topics=", ".join(skipped_titles) if skipped_titles else "None",
+            struggled_topics=", ".join(struggled_titles) if struggled_titles else "None",
             day_num=start_day,
             day_topic=day_topic,
             day_objectives=day_objs
@@ -141,10 +153,13 @@ async def handle_interview_turn(session_id: str, candidate_data: Optional[Dict[s
 
     # Check if target criteria met (at least 8 questions and 4 covered days)
     if asked_cnt >= 8 and len(covered_days) >= 4:
-        c_name = session['candidate'].get('member', {}).get('name', 'Candidate')
+        member = session['candidate'].get('member', {})
+        c_name = member.get('name', 'Candidate')
+        c_role = member.get('jobRole', 'AI Engineer')
         
         feedback_prompt = prompts.FEEDBACK_PROMPT_TEMPLATE.format(
             candidate_name=c_name,
+            candidate_role=c_role,
             transcript=json.dumps(session['history'], indent=2)
         )
         
@@ -172,7 +187,13 @@ async def handle_interview_turn(session_id: str, candidate_data: Optional[Dict[s
     session["current_day"] = next_day
     session["covered_days"].add(next_day)
 
+    member = session['candidate'].get('member', {})
+    c_name = member.get('name', 'Candidate')
+    c_role = member.get('jobRole', 'AI Engineer')
+
     interviewer_prompt = prompts.CONTINUATION_TURN_TEMPLATE.format(
+        candidate_name=c_name,
+        candidate_role=c_role,
         asked_count=asked_cnt,
         covered_count=len(covered_days),
         day_num=next_day,
