@@ -14,15 +14,19 @@ import prompts
 
 logger = logging.getLogger(__name__)
 
+# Base directory for resolving file resources reliably in serverless environments (Vercel)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CURRICULUM_PATH = os.path.join(BASE_DIR, "curriculum.json")
+
 # In-memory session store (sessionId -> session dict)
 SESSIONS: Dict[str, Dict[str, Any]] = {}
 
 # Load curriculum data at startup
 try:
-    with open("curriculum.json", "r", encoding="utf-8") as f:
+    with open(CURRICULUM_PATH, "r", encoding="utf-8") as f:
         CURRICULUM_DATA = json.load(f)
 except Exception as err:
-    logger.warning(f"Could not load curriculum.json: {err}")
+    logger.warning(f"Could not load curriculum.json from {CURRICULUM_PATH}: {err}")
     CURRICULUM_DATA = {"days": []}
 
 def get_day_info(day_num: int) -> Tuple[str, str]:
