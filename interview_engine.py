@@ -158,7 +158,7 @@ async def handle_interview_turn(session_id: str, candidate_data: Optional[Dict[s
             "asked_questions": 0,
             "covered_days": [],
             "history": [],
-            "current_day": start_day
+            "current_day_index": 0
         }
         await save_session(session_id, session_data)
         
@@ -186,7 +186,12 @@ async def handle_interview_turn(session_id: str, candidate_data: Optional[Dict[s
             day_objectives=day_objs
         )
         
-        reply = await call_gemini(prompts.SYSTEM_INTERVIEWER, initial_prompt)
+        reply_raw = await call_gemini(prompts.SYSTEM_INTERVIEWER, initial_prompt, response_json=True)
+        try:
+            reply_json = json.loads(reply_raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip())
+            reply = reply_json.get("reply", reply_raw)
+        except Exception:
+            reply = reply_raw
         
         session_data["asked_questions"] = 1
         if start_day not in session_data["covered_days"]:
@@ -250,14 +255,14 @@ async def handle_interview_turn(session_id: str, candidate_data: Optional[Dict[s
         
         return final_reply, True, feedback_json
 
-    # Select next curriculum day
-    next_day_index = asked_cnt % len(target_days) if target_days else 0
+    # Adaptive Depth: Pass current day and next day to LLM
+    current_day_index = session.get("current_day_index", 0)
+    current_day = target_days[current_day_index] if target_days else 7
+    next_day_index = (current_day_index + 1) % len(target_days) if target_days else 0
     next_day = target_days[next_day_index] if target_days else 7
-    day_topic, day_objs = get_day_info(next_day)
     
-    session["current_day"] = next_day
-    if next_day not in session["covered_days"]:
-        session["covered_days"].append(next_day)
+    current_topic, current_objs = get_day_info(current_day)
+    next_topic, next_objs = get_day_info(next_day)
 
     member = session['candidate'].get('member', {})
     c_name = member.get('name', 'Candidate')
@@ -268,13 +273,35 @@ async def handle_interview_turn(session_id: str, candidate_data: Optional[Dict[s
         candidate_role=c_role,
         asked_count=asked_cnt,
         covered_count=len(covered_days),
-        day_num=next_day,
-        day_topic=day_topic,
-        day_objectives=day_objs,
+        current_day=current_day,
+        current_topic=current_topic,
+        current_objectives=current_objs,
+        next_day=next_day,
+        next_topic=next_topic,
+        next_objectives=next_objs,
         transcript_history=json.dumps(session['history'][-4:], indent=2)
     )
 
-    reply = await call_gemini(prompts.SYSTEM_INTERVIEWER, interviewer_prompt)
+    reply_raw = await call_gemini(prompts.SYSTEM_INTERVIEWER, interviewer_prompt, response_json=True)
+    
+    try:
+        reply_json = json.loads(reply_raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip())
+        reply = reply_json.get("reply", reply_raw)
+        signal = reply_json.get("signal", "advance")
+    except Exception:
+        reply = reply_raw
+        signal = "advance"
+    
+    # Process signal
+    if signal == "advance":
+        session["current_day_index"] = next_day_index
+        asked_day = next_day
+    else:
+        # For 'deepen' or 'scaffold', we stay on the current topic
+        asked_day = current_day
+
+    if asked_day not in session["covered_days"]:
+        session["covered_days"].append(asked_day)
     
     session["asked_questions"] += 1
     session["history"].append({"role": "interviewer", "text": reply})
