@@ -26,8 +26,9 @@ Target Objectives: {day_objectives}
 Instructions:
 1. Greet {candidate_name} warmly and acknowledge their role as a {candidate_role}.
 2. Briefly state the format (multi-turn technical evaluation across cohort modules).
-3. Ask your FIRST clear, direct technical question specifically targeting Day {day_num} ({day_topic}).
-4. Do NOT ask multiple questions at once.
+3. Explicitly mention WHY you are starting with this topic (e.g., "I noticed you skipped...", "You had some challenges with...", or "Since you completed...").
+4. Ask your FIRST clear, direct technical question specifically targeting Day {day_num} ({day_topic}).
+5. Do NOT ask multiple questions at once.
 """
 
 CONTINUATION_TURN_TEMPLATE = """Interview Progress & Context:
@@ -42,7 +43,8 @@ Recent Interview Transcript:
 
 Instructions:
 1. Concisely evaluate {candidate_name}'s last answer (acknowledge strong points or point out missing nuances/edge cases).
-2. Transition smoothly and ask ONE intelligent, follow-up technical question related to Day {day_num} ({day_topic}) or building on their previous response.
+2. Explicitly mention WHY you are moving to this next topic based on their cohort performance or previous answers.
+3. Transition smoothly and ask ONE intelligent, follow-up technical question related to Day {day_num} ({day_topic}) or building on their previous response.
 """
 
 FEEDBACK_PROMPT_TEMPLATE = """Analyze this complete technical interview transcript for candidate {candidate_name} ({candidate_role}):
@@ -53,8 +55,8 @@ Transcript:
 Generate a JSON object matching this exact schema:
 {{
     "summary": "A 2-3 sentence overall assessment of candidate performance, highlighting their technical communication and problem-solving depth.",
-    "strengths": ["Key technical strength 1", "Key technical strength 2"],
-    "gaps": ["Technical gap or weakness 1", "Technical gap or weakness 2"],
+    "strengths": ["Key technical strength 1 (explicitly mention which Day/topic this relates to)", "Key technical strength 2 (explicitly mention which Day/topic this relates to)"],
+    "gaps": ["Technical gap or weakness 1 (explicitly mention which Day/topic this relates to)", "Technical gap or weakness 2 (explicitly mention which Day/topic this relates to)"],
     "next": ["Actionable recommendation 1", "Actionable recommendation 2"]
 }}
 """
