@@ -14,12 +14,41 @@ import prompts
 
 logger = logging.getLogger(__name__)
 
+KV_REST_API_URL = os.getenv("KV_REST_API_URL")
+KV_REST_API_TOKEN = os.getenv("KV_REST_API_TOKEN")
+
 # Base directory for resolving file resources reliably in serverless environments (Vercel)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CURRICULUM_PATH = os.path.join(BASE_DIR, "curriculum.json")
 
-# In-memory session store (sessionId -> session dict)
+# In-memory session store fallback
 SESSIONS: Dict[str, Dict[str, Any]] = {}
+
+async def get_session(session_id: str) -> Optional[Dict[str, Any]]:
+    if KV_REST_API_URL and KV_REST_API_TOKEN:
+        url = f"{KV_REST_API_URL.rstrip('/')}/get/{session_id}"
+        headers = {"Authorization": f"Bearer {KV_REST_API_TOKEN}"}
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(url, headers=headers)
+                if resp.status_code == 200:
+                    data = resp.json().get("result")
+                    if data:
+                        return json.loads(data)
+        except Exception as e:
+            logger.error(f"Error fetching session from KV: {e}")
+    return SESSIONS.get(session_id)
+
+async def save_session(session_id: str, session_data: Dict[str, Any]):
+    SESSIONS[session_id] = session_data
+    if KV_REST_API_URL and KV_REST_API_TOKEN:
+        url = f"{KV_REST_API_URL.rstrip('/')}/set/{session_id}"
+        headers = {"Authorization": f"Bearer {KV_REST_API_TOKEN}"}
+        try:
+            async with httpx.AsyncClient() as client:
+                await client.post(url, headers=headers, json=json.dumps(session_data))
+        except Exception as e:
+            logger.error(f"Error saving session to KV: {e}")
 
 # Load curriculum data at startup
 try:
@@ -123,14 +152,15 @@ async def handle_interview_turn(session_id: str, candidate_data: Optional[Dict[s
         target_days = get_candidate_target_days(candidate_data)
         start_day = target_days[0] if target_days else 7
         
-        SESSIONS[session_id] = {
+        session_data = {
             "candidate": candidate_data,
             "target_days": target_days,
             "asked_questions": 0,
-            "covered_days": set(),
+            "covered_days": [],
             "history": [],
             "current_day": start_day
         }
+        await save_session(session_id, session_data)
         
         member = candidate_data.get("member", {})
         c_name = member.get("name", "Candidate")
@@ -158,9 +188,12 @@ async def handle_interview_turn(session_id: str, candidate_data: Optional[Dict[s
         
         reply = await call_gemini(prompts.SYSTEM_INTERVIEWER, initial_prompt)
         
-        SESSIONS[session_id]["asked_questions"] = 1
-        SESSIONS[session_id]["covered_days"].add(start_day)
-        SESSIONS[session_id]["history"].append({"role": "interviewer", "text": reply})
+        session_data["asked_questions"] = 1
+        if start_day not in session_data["covered_days"]:
+            session_data["covered_days"].append(start_day)
+        session_data["history"].append({"role": "interviewer", "text": reply})
+        
+        await save_session(session_id, session_data)
         
         # Async memory sync to Breeth
         await sync_to_breeth(session_id, "init", {"candidate": c_name, "role": c_role})
@@ -168,7 +201,7 @@ async def handle_interview_turn(session_id: str, candidate_data: Optional[Dict[s
         return reply, False, None
 
     # 2. CONTINUATION TURN
-    session = SESSIONS.get(session_id)
+    session = await get_session(session_id)
     if not session:
         return "Session expired or not found. Please restart the interview.", True, None
 
@@ -192,15 +225,24 @@ async def handle_interview_turn(session_id: str, candidate_data: Optional[Dict[s
             transcript=json.dumps(session['history'], indent=2)
         )
         
-        feedback_raw = await call_gemini(
-            prompts.SYSTEM_EVALUATOR,
-            feedback_prompt,
-            response_json=True
-        )
-        
-        # Robust JSON cleaning for markdown backticks
-        clean_json_str = feedback_raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-        feedback_json = json.loads(clean_json_str)
+        try:
+            feedback_raw = await call_gemini(
+                prompts.SYSTEM_EVALUATOR,
+                feedback_prompt,
+                response_json=True
+            )
+            
+            # Robust JSON cleaning for markdown backticks
+            clean_json_str = feedback_raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+            feedback_json = json.loads(clean_json_str)
+        except Exception as e:
+            logger.error(f"Fallback triggered due to feedback error: {e}")
+            feedback_json = {
+                "summary": "Thank you for participating. We encountered an issue generating your detailed automated feedback, but your responses have been successfully recorded.",
+                "strengths": ["Completed the interview requirements"],
+                "gaps": ["Detailed feedback unavailable due to a processing error"],
+                "next": ["Await manual review of your interview transcript"]
+            }
         
         final_reply = "Thank you for completing the technical interview! I have evaluated your responses across all cohort modules, and your structured feedback report is ready below."
         
@@ -214,7 +256,8 @@ async def handle_interview_turn(session_id: str, candidate_data: Optional[Dict[s
     day_topic, day_objs = get_day_info(next_day)
     
     session["current_day"] = next_day
-    session["covered_days"].add(next_day)
+    if next_day not in session["covered_days"]:
+        session["covered_days"].append(next_day)
 
     member = session['candidate'].get('member', {})
     c_name = member.get('name', 'Candidate')
@@ -235,5 +278,6 @@ async def handle_interview_turn(session_id: str, candidate_data: Optional[Dict[s
     
     session["asked_questions"] += 1
     session["history"].append({"role": "interviewer", "text": reply})
+    await save_session(session_id, session)
     
     return reply, False, None
