@@ -71,7 +71,8 @@ DEMO_HTML = """
         function appendMessage(role, text) {
             const div = document.createElement('div');
             div.className = 'message ' + role;
-            div.innerHTML = `<strong>${role === 'interviewer' ? 'AI Interviewer' : 'You'}:</strong><br> ${formatText(text)}`;
+            const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            div.innerHTML = `<strong>${role === 'interviewer' ? 'AI Interviewer' : 'You'}</strong> <span style="font-size: 0.8em; color: #718096; margin-left: 8px;">${timeStr}</span><br> ${formatText(text)}`;
             chatBox.appendChild(div);
             chatBox.scrollTop = chatBox.scrollHeight;
         }
