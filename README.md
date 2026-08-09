@@ -9,10 +9,12 @@ The agent conducts structured, multi-turn technical evaluations of candidates, d
 ## 🌟 Key Features
 
 - **Multi-Turn Adaptive Interviews**: Evaluates candidates across cohort curriculum days (RAG, Fine-Tuning, Agentic Workflows, Evaluation, etc.).
+- **Adaptive Depth**: Uses AI signals (`advance`, `deepen`, `scaffold`) to dynamically probe harder or scaffold backwards based on candidate responses.
 - **Smart Target Selection**: Prioritizes skipped or struggled missions to assess weak spots effectively.
-- **Grounded Evaluation**: Injects structured topic objectives from `curriculum.json` into interviewer prompts.
-- **Breeth Memory Integration**: Syncs interview turns and session states asynchronously with Breeth persistent memory graphs.
-- **Structured Feedback**: Generates automated performance summaries, key strengths, knowledge gaps, and recommended next steps.
+- **State Persistence**: Uses Vercel KV (Upstash Redis) to maintain multi-turn session state across serverless cold starts.
+- **Grounded & Personalized Evaluation**: Injects structured topic objectives and explicitly references candidate history in conversation.
+- **Structured Feedback**: Generates automated performance summaries, key strengths, knowledge gaps, and recommended next steps mapped directly to curriculum days.
+- **Interactive UI Demo**: Includes a built-in browser UI at `/demo` for instant live testing.
 
 ---
 
@@ -20,7 +22,8 @@ The agent conducts structured, multi-turn technical evaluations of candidates, d
 
 - **Framework**: Python 3.13 + FastAPI
 - **LLM Engine**: Google Gemini 2.5 Flash (`gemini-2.5-flash`)
-- **Memory Persistence**: Breeth Memory API (`thebreeth.com`)
+- **Session Persistence**: Vercel KV (Upstash Redis)
+- **Telemetry**: Breeth Memory API (`thebreeth.com`)
 - **HTTP Client**: `httpx`
 
 ---
@@ -46,6 +49,8 @@ Edit `.env`:
 ```env
 GEMINI_API_KEY="your_gemini_api_key_here"
 BREETH_API_KEY="your_breeth_api_key_here"
+KV_REST_API_URL="your_vercel_kv_url_here"
+KV_REST_API_TOKEN="your_vercel_kv_token_here"
 ```
 
 ### 3. Run the API Server
@@ -53,8 +58,10 @@ Start the FastAPI server:
 ```bash
 uvicorn main:app --reload --port 8000
 ```
-Interactive API documentation will be available at:
-`http://localhost:8000/docs`
+Interactive API documentation will be available at: `http://localhost:8000/docs`
+
+### 4. Interactive Live Demo
+You can test the interview loop visually by visiting: `http://localhost:8000/demo`
 
 ---
 

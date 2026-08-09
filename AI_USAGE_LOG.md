@@ -44,6 +44,13 @@ Throughout the development of **The Interview Agent**, AI models and agentic pai
 * **Goal**: Automated simulation of multi-turn interviews.
 * **Test Outcome**: Verified 8-turn technical interaction for candidate *Sarah Johnson*, validating context retention, candidate response evaluation, and structured JSON feedback generation (`summary`, `strengths`, `gaps`, `next`).
 
+### Phase 5: Production Polish (Vercel KV, Adaptive Depth, Live UI)
+* **Goal**: Ensure production readiness for judge evaluations and eliminate serverless cold-start bugs.
+* **AI Assistance**:
+  - Implemented **Vercel KV** integration to persist session state securely.
+  - Redesigned LLM interaction for **Adaptive Depth**, moving to JSON signals (`advance`, `deepen`, `scaffold`) to control curriculum progression natively.
+  - Built a standalone HTML frontend `/demo` endpoint to drastically simplify testing and QA.
+
 ---
 
 ## 3. Feature Breakdown & AI Attribution
@@ -51,7 +58,8 @@ Throughout the development of **The Interview Agent**, AI models and agentic pai
 | Feature / Module | AI Tool Used | Contribution Description |
 | :--- | :--- | :--- |
 | **FastAPI REST Endpoint** (`main.py`) | Antigravity AI | Endpoint specification, CORS setup, Pydantic validation fallback. |
-| **Interview Engine** (`interview_engine.py`) | Gemini 2.5 Flash + Antigravity | Dynamic candidate mission selection, system instruction payload generation, exponential backoff retries. |
+| **Interview Engine** (`interview_engine.py`) | Gemini 2.5 Flash + Antigravity | Dynamic candidate mission selection, system instruction payload generation, exponential backoff retries, and Vercel KV persistence. |
+| **Adaptive Depth Logic** | Gemini 2.5 Flash | Parses `advance`/`deepen`/`scaffold` signals via JSON generation to control interview progression. |
 | **System & Turn Prompts** (`prompts.py`) | Gemini 2.5 Flash | Structured system instructions, candidate profile context injection, structured feedback schema. |
 | **Breeth Memory Integration** (`breeth_client.py`) | Antigravity AI | Non-blocking asynchronous persistent telemetry sync. |
 | **Curriculum & Candidate Datasets** | Hackathon Specs | Complete 31-day module mapping and candidate profile records. |

@@ -41,8 +41,15 @@ Target Objectives: {day_objectives}
 Instructions:
 1. Greet {candidate_name} warmly and acknowledge their role as a {candidate_role}.
 2. Briefly state the format (multi-turn technical evaluation across cohort modules).
-3. Ask your FIRST clear, direct technical question specifically targeting Day {day_num} ({day_topic}).
-4. Do NOT ask multiple questions at once.
+3. Explicitly mention WHY you are starting with this topic (e.g., "I noticed you skipped...", "You had some challenges with...", or "Since you completed...").
+4. Ask your FIRST clear, direct technical question specifically targeting Day {day_num} ({day_topic}).
+5. Do NOT ask multiple questions at once.
+
+Generate a JSON object matching this exact schema:
+{
+    "reply": "Your complete spoken response and technical question here",
+    "signal": "advance"
+}
 ```
 
 ### Continuation Turn Template (`CONTINUATION_TURN_TEMPLATE`)
@@ -51,15 +58,28 @@ Interview Progress & Context:
 - Candidate: {candidate_name} ({candidate_role})
 - Questions asked so far: {asked_count}/8 minimum target
 - Unique curriculum days covered: {covered_count}/4 minimum target
-- Current Target Curriculum: Day {day_num} - {day_topic}
-- Objectives: {day_objectives}
+
+Topics:
+- CURRENT Topic: Day {current_day} - {current_topic} (Objectives: {current_objectives})
+- NEXT Topic: Day {next_day} - {next_topic} (Objectives: {next_objectives})
 
 Recent Interview Transcript:
 {transcript_history}
 
 Instructions:
 1. Concisely evaluate {candidate_name}'s last answer (acknowledge strong points or point out missing nuances/edge cases).
-2. Transition smoothly and ask ONE intelligent, follow-up technical question related to Day {day_num} ({day_topic}) or building on their previous response.
+2. Choose the appropriate signal based on their answer:
+   - "advance": If they answered well and you are moving to the NEXT Topic (Day {next_day}).
+   - "deepen": If they answered exceptionally well and you want to probe deeper into the CURRENT Topic (Day {current_day}).
+   - "scaffold": If they struggled and you need to ask an easier, foundational question on the CURRENT Topic (Day {current_day}).
+3. Explicitly mention WHY you are making this move (e.g. "That's a great answer, let's go a bit deeper into..." or "Since you have a good grasp of this, let's move on to...").
+4. Transition smoothly and ask ONE intelligent, follow-up technical question based on the topic determined by your signal.
+
+Generate a JSON object matching this exact schema:
+{
+    "reply": "Your complete spoken evaluation, transition, and next technical question here",
+    "signal": "advance" | "deepen" | "scaffold"
+}
 ```
 
 ### Final Feedback Prompt Template (`FEEDBACK_PROMPT_TEMPLATE`)
@@ -72,8 +92,8 @@ Transcript:
 Generate a JSON object matching this exact schema:
 {
     "summary": "A 2-3 sentence overall assessment of candidate performance, highlighting their technical communication and problem-solving depth.",
-    "strengths": ["Key technical strength 1", "Key technical strength 2"],
-    "gaps": ["Technical gap or weakness 1", "Technical gap or weakness 2"],
+    "strengths": ["Key technical strength 1 (explicitly mention which Day/topic this relates to)", "Key technical strength 2 (explicitly mention which Day/topic this relates to)"],
+    "gaps": ["Technical gap or weakness 1 (explicitly mention which Day/topic this relates to)", "Technical gap or weakness 2 (explicitly mention which Day/topic this relates to)"],
     "next": ["Actionable recommendation 1", "Actionable recommendation 2"]
 }
 ```
@@ -116,6 +136,15 @@ Generate a JSON object matching this exact schema:
   - Implemented exponential backoff retries (`2s` -> `4s` -> `8s`) in `call_gemini()` for HTTP 429 rate limits.
   - Created `requirements.txt`, `vercel.json` rewrites, and `api/index.py` for Vercel Python serverless deployment.
   - Verified live deployment at `https://interview-agent-kohl.vercel.app/`.
+
+### Iteration 6: Final Polish - Adaptive Depth & Vercel KV
+* **User Prompt**: "Locking in Interview Agent. Fix the in-memory session bug... make personalization visible... add adaptive depth... add demo page."
+* **AI Output**:
+  - Integrated **Vercel KV (Upstash Redis)** into `interview_engine.py` to fix serverless cold-start data loss (P0).
+  - Modified prompts to require **JSON responses** to support an `advance`, `deepen`, or `scaffold` signal.
+  - Restructured the engine to support **Adaptive Depth**: LLM now decides whether to push forward to a new topic or drill down into the current topic based on the candidate's answer quality.
+  - Added explicit prompt instructions for curriculum-mapped feedback in `FEEDBACK_PROMPT_TEMPLATE`.
+  - Built an interactive **HTML demo UI** hosted on `GET /demo` in `main.py` for immediate judge testing.
 
 ---
 
