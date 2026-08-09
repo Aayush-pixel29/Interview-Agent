@@ -46,7 +46,7 @@ async def save_session(session_id: str, session_data: Dict[str, Any]):
         headers = {"Authorization": f"Bearer {KV_REST_API_TOKEN}"}
         try:
             async with httpx.AsyncClient() as client:
-                await client.post(url, headers=headers, json=json.dumps(session_data))
+                await client.post(url, headers=headers, content=json.dumps(session_data))
         except Exception as e:
             logger.error(f"Error saving session to KV: {e}")
 
@@ -292,13 +292,16 @@ async def handle_interview_turn(session_id: str, candidate_data: Optional[Dict[s
         reply = reply_raw
         signal = "advance"
     
-    # Process signal
-    if signal == "advance":
+    # Process signal with streak limit to prevent infinite loops
+    same_day_streak = session.get("same_day_streak", 0)
+    if signal == "advance" or same_day_streak >= 2:
         session["current_day_index"] = next_day_index
         asked_day = next_day
+        session["same_day_streak"] = 0
     else:
         # For 'deepen' or 'scaffold', we stay on the current topic
         asked_day = current_day
+        session["same_day_streak"] = same_day_streak + 1
 
     if asked_day not in session["covered_days"]:
         session["covered_days"].append(asked_day)
