@@ -1,5 +1,7 @@
 # The Interview Agent
 
+**Live Demo:** [https://interview-agent-kohl.vercel.app/demo](https://interview-agent-kohl.vercel.app/demo)
+
 An AI-powered technical interviewer backend built with **FastAPI** and **Google Gemini 2.5 Flash**, designed for the **ABTalks AI Cohort Hackathon**.
 
 The agent conducts structured, multi-turn technical evaluations of candidates, dynamically selecting focus topics based on candidate mission history, tracking progress across curriculum modules, and generating structured evaluation reports.
@@ -61,7 +63,9 @@ uvicorn main:app --reload --port 8000
 Interactive API documentation will be available at: `http://localhost:8000/docs`
 
 ### 4. Interactive Live Demo
-You can test the interview loop visually by visiting: `http://localhost:8000/demo`
+You can test the interview loop visually by visiting: 
+- **Local:** `http://localhost:8000/demo`
+- **Live:** [https://interview-agent-kohl.vercel.app/demo](https://interview-agent-kohl.vercel.app/demo)
 
 ---
 
